@@ -12,14 +12,33 @@ from PyQt6.QtWidgets import (
     QLabel, QPushButton, QLineEdit, QComboBox, QFrame, QStackedWidget,
     QProgressBar, QScrollArea, QGraphicsDropShadowEffect, QSpacerItem, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QStandardPaths
 from PyQt6.QtGui import QFont, QColor, QPalette
 import yt_dlp
 
 # --- Configuration ---
-DOWNLOAD_FOLDER = "Downloads"
+# --- Configuration ---
+def get_download_path():
+    return QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation)
+
+def get_ffmpeg_path():
+    if getattr(sys, 'frozen', False):
+        # Running as compiled executable
+        base_path = sys._MEIPASS
+    else:
+        # Running as script
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    
+    ffmpeg_exe = os.path.join(base_path, 'ffmpeg.exe')
+    if not os.path.exists(ffmpeg_exe):
+        # Fallback to current directory if not found in base path
+        ffmpeg_exe = os.path.join(os.getcwd(), 'ffmpeg.exe')
+        
+    return os.path.dirname(ffmpeg_exe) if os.path.exists(ffmpeg_exe) else base_path
+
+DOWNLOAD_FOLDER = get_download_path()
 CHECK_INTERVAL = 500
-FFMPEG_PATH = os.path.dirname(os.path.abspath(__file__))  # Look for ffmpeg in script directory
+FFMPEG_PATH = get_ffmpeg_path()
 
 # --- Stylesheet ---
 STYLESHEET = """
@@ -261,9 +280,8 @@ QPushButton#downloadBtn:disabled {
 
 /* Download Progress Card */
 QFrame#progressCard {
-    background: rgba(255, 59, 92, 0.08);
-    border: 1px solid rgba(255, 59, 92, 0.15);
-    border-radius: 12px;
+    background: transparent;
+    border: none;
 }
 
 QLabel#progressTitle {
@@ -451,6 +469,7 @@ class PlayGetApp(QMainWindow):
         
         self.create_main_view()
         self.create_youtube_view()
+        self.create_facebook_view()
         
         self.create_status_bar(main_layout)
         
@@ -552,7 +571,8 @@ class PlayGetApp(QMainWindow):
         yt_btn.clicked.connect(lambda: self.stack.setCurrentIndex(1))
         grid1_layout.addWidget(yt_btn)
         
-        fb_btn = self.create_platform_button("f", "Facebook", "facebookBtn", "#1877f2", False)
+        fb_btn = self.create_platform_button("f", "Facebook", "facebookBtn", "#1877f2", True)
+        fb_btn.clicked.connect(lambda: self.stack.setCurrentIndex(2))
         grid1_layout.addWidget(fb_btn)
         
         layout.addWidget(grid1)
@@ -606,6 +626,95 @@ class PlayGetApp(QMainWindow):
         
         return btn
         
+    def create_facebook_view(self):
+        view = QWidget()
+        layout = QVBoxLayout(view)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(0)
+        
+        # Header
+        header = QWidget()
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(0, 0, 0, 16)
+        header_layout.setSpacing(0)
+        
+        back_btn = QPushButton("←  Back")
+        back_btn.setObjectName("backBtn")
+        back_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        back_btn.clicked.connect(lambda: self.stack.setCurrentIndex(0))
+        
+        header_layout.addWidget(back_btn)
+        header_layout.addStretch()
+        
+        fb_icon = QLabel("f")
+        fb_icon.setObjectName("fbHeaderIcon")
+        fb_icon.setStyleSheet("color: #1877f2; font-size: 20px; font-weight: bold;")
+        
+        fb_title = QLabel("Facebook")
+        fb_title.setObjectName("fbHeaderTitle")
+        fb_title.setStyleSheet("font-size: 16px; font-weight: 700;")
+        
+        header_layout.addWidget(fb_icon)
+        header_layout.addSpacing(8)
+        header_layout.addWidget(fb_title)
+        
+        layout.addWidget(header)
+        
+        # URL Input Card
+        url_card = QFrame()
+        url_card.setObjectName("urlCard")
+        url_layout = QHBoxLayout(url_card)
+        url_layout.setContentsMargins(16, 12, 12, 12)
+        url_layout.setSpacing(12)
+        
+        self.fb_url_input = QLineEdit()
+        self.fb_url_input.setObjectName("urlInput") # Reuse style
+        self.fb_url_input.setPlaceholderText("Paste Facebook video URL...")
+        
+        paste_btn = QPushButton("📋")
+        paste_btn.setObjectName("pasteBtn")
+        paste_btn.setFixedSize(36, 36)
+        paste_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        paste_btn.clicked.connect(lambda: self.paste_url(self.fb_url_input))
+        
+        url_layout.addWidget(self.fb_url_input, 1)
+        url_layout.addWidget(paste_btn)
+        
+        layout.addWidget(url_card)
+        layout.addSpacing(16)
+        
+        # Quality Selection (Simplified for FB)
+        quality_label = QLabel("QUALITY")
+        quality_label.setProperty("class", "sectionTitle")
+        layout.addWidget(quality_label)
+        layout.addSpacing(8)
+        
+        self.fb_quality_combo = QComboBox()
+        self.fb_quality_combo.setObjectName("qualityCombo")
+        self.fb_quality_combo.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.fb_quality_combo.addItems(["Best Quality", "SD"])
+        layout.addWidget(self.fb_quality_combo)
+        layout.addSpacing(20)
+        
+        # Download Button
+        fb_download_btn = QPushButton("Download")
+        fb_download_btn.setObjectName("downloadBtn")
+        fb_download_btn.setStyleSheet("""
+            QPushButton#downloadBtn {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1877f2, stop:1 #3b5998);
+            }
+            QPushButton#downloadBtn:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2988ff, stop:1 #4c6ab5);
+            }
+        """)
+        fb_download_btn.setFixedHeight(50)
+        fb_download_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        fb_download_btn.clicked.connect(lambda: self.start_download(self.fb_url_input))
+        layout.addWidget(fb_download_btn)
+        
+        layout.addStretch()
+        self.stack.addWidget(view)
+
     def create_youtube_view(self):
         view = QWidget()
         layout = QVBoxLayout(view)
@@ -715,40 +824,24 @@ class PlayGetApp(QMainWindow):
         layout.addSpacing(8)
         
         # Progress Card
+        # Progress Card
         self.progress_card = QFrame()
         self.progress_card.setObjectName("progressCard")
         self.progress_card.setVisible(False)
-        progress_card_layout = QVBoxLayout(self.progress_card)
-        progress_card_layout.setContentsMargins(16, 14, 16, 14)
+        progress_card_layout = QHBoxLayout(self.progress_card)
+        progress_card_layout.setContentsMargins(0, 8, 0, 0)
         progress_card_layout.setSpacing(10)
-        
-        # Progress header row
-        progress_header = QWidget()
-        progress_header_layout = QHBoxLayout(progress_header)
-        progress_header_layout.setContentsMargins(0, 0, 0, 0)
-        
-        self.progress_title = QLabel("Downloading...")
-        self.progress_title.setObjectName("progressTitle")
-        
-        self.progress_percent = QLabel("0%")
-        self.progress_percent.setObjectName("progressPercent")
-        
-        progress_header_layout.addWidget(self.progress_title, 1)
-        progress_header_layout.addWidget(self.progress_percent)
-        
-        progress_card_layout.addWidget(progress_header)
         
         # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setObjectName("progressBar")
         self.progress_bar.setTextVisible(False)
         self.progress_bar.setFixedHeight(8)
-        progress_card_layout.addWidget(self.progress_bar)
-        
-        # Progress status
-        self.progress_status = QLabel("Starting download...")
-        self.progress_status.setObjectName("progressStatus")
-        progress_card_layout.addWidget(self.progress_status)
+        progress_card_layout.addWidget(self.progress_bar, 1)
+
+        self.progress_percent = QLabel("0%")
+        self.progress_percent.setObjectName("progressPercent")
+        progress_card_layout.addWidget(self.progress_percent)
         
         layout.addWidget(self.progress_card)
         layout.addSpacing(16)
@@ -814,9 +907,10 @@ class PlayGetApp(QMainWindow):
         else:
             self.quality_combo.addItems(["320 kbps (Best)", "256 kbps", "192 kbps", "128 kbps"])
             
-    def paste_url(self):
+    def paste_url(self, input_field=None):
         clipboard = QApplication.clipboard()
-        self.url_input.setText(clipboard.text())
+        target = input_field if input_field else self.url_input
+        target.setText(clipboard.text())
         
     def toggle_auto_mode(self):
         self.auto_mode_active = self.auto_btn.isChecked()
@@ -824,7 +918,8 @@ class PlayGetApp(QMainWindow):
             self.auto_btn.setText("STOP")
             self.clipboard_timer.start(CHECK_INTERVAL)
             self.update_status_display("Watching clipboard...", "#ff3b5c")
-            self.last_clipboard = QApplication.clipboard().text()
+            # Don't suppress current clipboard - let check_clipboard handle it
+            # self.last_clipboard = QApplication.clipboard().text() 
         else:
             self.auto_btn.setText("START")
             self.clipboard_timer.stop()
@@ -836,12 +931,20 @@ class PlayGetApp(QMainWindow):
         
         if current != self.last_clipboard:
             self.last_clipboard = current
-            if self.is_youtube_url(current):
+            if self.is_supported_url(current):
                 self.add_to_queue(current)
                 self.update_status_display("Added to queue", "#4ade80")
                 
     def is_youtube_url(self, text):
-        return text and ("youtube.com/watch" in text or "youtu.be/" in text)
+        if not text: return False
+        return "youtube.com" in text or "youtu.be" in text
+
+    def is_facebook_url(self, text):
+        if not text: return False
+        return "facebook.com" in text or "fb.watch" in text or "fb.com" in text
+
+    def is_supported_url(self, text):
+        return self.is_youtube_url(text) or self.is_facebook_url(text)
         
     def get_quality_value(self):
         text = self.quality_combo.currentText()
@@ -859,17 +962,18 @@ class PlayGetApp(QMainWindow):
         self.url_queue.put((url, self.download_type, self.get_quality_value()))
         self.signals.queue_update.emit(self.url_queue.qsize())
         
-    def start_download(self):
-        url = self.url_input.text().strip()
+    def start_download(self, input_field=None):
+        target = input_field if input_field else self.url_input
+        url = target.text().strip()
         if not url:
             self.update_status_display("Enter a URL", "#fbbf24")
             return
-        if not self.is_youtube_url(url):
+        if not self.is_supported_url(url):
             self.update_status_display("Invalid URL", "#ef4444")
             return
             
         self.add_to_queue(url)
-        self.url_input.clear()
+        target.clear()
         
     def start_worker(self):
         worker = threading.Thread(target=self.download_worker, daemon=True)
@@ -916,6 +1020,11 @@ class PlayGetApp(QMainWindow):
                         'no_warnings': False,
                         'verbose': True,
                         'progress_hooks': [self.progress_hook],
+                        'extractor_args': {
+                            'youtube': {
+                                'player_client': ['android', 'ios']
+                            }
+                        }
                     }
                     
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -950,28 +1059,16 @@ class PlayGetApp(QMainWindow):
         self.progress_card.setVisible(True)
         self.progress_bar.setValue(0)
         self.progress_percent.setText("0%")
-        self.progress_title.setText("Downloading...")
-        self.progress_status.setText("Starting download...")
         self.download_btn.setEnabled(False)
         
     def update_progress(self, value):
         self.progress_bar.setValue(value)
         self.progress_percent.setText(f"{value}%")
-        if value < 30:
-            self.progress_status.setText("Fetching video data...")
-        elif value < 70:
-            self.progress_status.setText("Downloading content...")
-        elif value < 100:
-            self.progress_status.setText("Almost done...")
-        else:
-            self.progress_status.setText("Processing...")
         
     def on_download_complete(self, url):
         self.update_status_display("Complete!", "#4ade80")
         self.progress_bar.setValue(100)
         self.progress_percent.setText("100%")
-        self.progress_title.setText("Download Complete!")
-        self.progress_status.setText("Saved to Downloads folder")
         self.download_btn.setEnabled(True)
         QTimer.singleShot(3000, self.hide_progress_card)
         
@@ -981,8 +1078,6 @@ class PlayGetApp(QMainWindow):
         
     def on_download_error(self, error):
         self.update_status_display("Error", "#ef4444")
-        self.progress_title.setText("Download Failed")
-        self.progress_status.setText(error[:50] if len(error) > 50 else error)
         self.progress_percent.setText("—")
         self.download_btn.setEnabled(True)
         QTimer.singleShot(5000, self.hide_progress_card)

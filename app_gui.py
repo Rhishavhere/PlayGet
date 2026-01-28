@@ -19,6 +19,7 @@ import yt_dlp
 # --- Configuration ---
 DOWNLOAD_FOLDER = "Downloads"
 CHECK_INTERVAL = 500
+FFMPEG_PATH = os.path.dirname(os.path.abspath(__file__))  # Look for ffmpeg in script directory
 
 # --- Stylesheet ---
 STYLESHEET = """
@@ -258,17 +259,42 @@ QPushButton#downloadBtn:disabled {
     color: rgba(255, 255, 255, 0.4);
 }
 
+/* Download Progress Card */
+QFrame#progressCard {
+    background: rgba(255, 59, 92, 0.08);
+    border: 1px solid rgba(255, 59, 92, 0.15);
+    border-radius: 12px;
+}
+
+QLabel#progressTitle {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+QLabel#progressPercent {
+    font-size: 20px;
+    font-weight: 700;
+    color: #ff3b5c;
+}
+
+QLabel#progressStatus {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
 /* Progress Bar */
 QProgressBar#progressBar {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.08);
     border: none;
-    border-radius: 3px;
-    max-height: 6px;
+    border-radius: 4px;
+    min-height: 8px;
+    max-height: 8px;
 }
 
 QProgressBar#progressBar::chunk {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ff3b5c, stop:1 #ff6b81);
-    border-radius: 3px;
+    border-radius: 4px;
 }
 
 /* Auto Mode Section */
@@ -688,14 +714,44 @@ class PlayGetApp(QMainWindow):
         layout.addWidget(self.download_btn)
         layout.addSpacing(8)
         
-        # Progress Bar
+        # Progress Card
+        self.progress_card = QFrame()
+        self.progress_card.setObjectName("progressCard")
+        self.progress_card.setVisible(False)
+        progress_card_layout = QVBoxLayout(self.progress_card)
+        progress_card_layout.setContentsMargins(16, 14, 16, 14)
+        progress_card_layout.setSpacing(10)
+        
+        # Progress header row
+        progress_header = QWidget()
+        progress_header_layout = QHBoxLayout(progress_header)
+        progress_header_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.progress_title = QLabel("Downloading...")
+        self.progress_title.setObjectName("progressTitle")
+        
+        self.progress_percent = QLabel("0%")
+        self.progress_percent.setObjectName("progressPercent")
+        
+        progress_header_layout.addWidget(self.progress_title, 1)
+        progress_header_layout.addWidget(self.progress_percent)
+        
+        progress_card_layout.addWidget(progress_header)
+        
+        # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setObjectName("progressBar")
-        self.progress_bar.setVisible(False)
         self.progress_bar.setTextVisible(False)
-        self.progress_bar.setFixedHeight(6)
-        layout.addWidget(self.progress_bar)
-        layout.addSpacing(20)
+        self.progress_bar.setFixedHeight(8)
+        progress_card_layout.addWidget(self.progress_bar)
+        
+        # Progress status
+        self.progress_status = QLabel("Starting download...")
+        self.progress_status.setObjectName("progressStatus")
+        progress_card_layout.addWidget(self.progress_status)
+        
+        layout.addWidget(self.progress_card)
+        layout.addSpacing(16)
         
         # Auto Mode Card
         auto_card = QFrame()
@@ -835,6 +891,7 @@ class PlayGetApp(QMainWindow):
                     ydl_opts = {
                         'format': 'bestaudio/best',
                         'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
+                        'ffmpeg_location': FFMPEG_PATH,
                         'postprocessors': [{
                             'key': 'FFmpegExtractAudio',
                             'preferredcodec': 'mp3',
@@ -845,13 +902,19 @@ class PlayGetApp(QMainWindow):
                         'progress_hooks': [self.progress_hook],
                     }
                 else:
-                    fmt = f'bestvideo[height<={quality}]+bestaudio/best' if quality != "best" else 'best'
+                    # Prefer pre-merged mp4 formats to avoid ffmpeg issues
+                    if quality != "best":
+                        fmt = f'bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={quality}]+bestaudio/best[height<={quality}]/best'
+                    else:
+                        fmt = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best'
                     ydl_opts = {
                         'format': fmt,
                         'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
+                        'ffmpeg_location': FFMPEG_PATH,
                         'merge_output_format': 'mp4',
-                        'quiet': True,
-                        'no_warnings': True,
+                        'quiet': False,
+                        'no_warnings': False,
+                        'verbose': True,
                         'progress_hooks': [self.progress_hook],
                     }
                     
@@ -860,6 +923,7 @@ class PlayGetApp(QMainWindow):
                     self.signals.download_complete.emit(url)
                     
             except Exception as e:
+                print(f"ERROR: {str(e)}")
                 self.signals.download_error.emit(str(e))
             finally:
                 self.url_queue.task_done()
@@ -870,7 +934,8 @@ class PlayGetApp(QMainWindow):
         if d['status'] == 'downloading':
             try:
                 p = d.get('_percent_str', '0%').strip().replace('%', '')
-                self.signals.progress_update.emit(int(float(p)))
+                percent = int(float(p))
+                self.signals.progress_update.emit(percent)
             except:
                 pass
         elif d['status'] == 'finished':
@@ -882,24 +947,45 @@ class PlayGetApp(QMainWindow):
             
     def update_status(self, text):
         self.update_status_display(text, "#ff3b5c")
-        self.progress_bar.setVisible(True)
+        self.progress_card.setVisible(True)
         self.progress_bar.setValue(0)
+        self.progress_percent.setText("0%")
+        self.progress_title.setText("Downloading...")
+        self.progress_status.setText("Starting download...")
         self.download_btn.setEnabled(False)
         
     def update_progress(self, value):
         self.progress_bar.setValue(value)
+        self.progress_percent.setText(f"{value}%")
+        if value < 30:
+            self.progress_status.setText("Fetching video data...")
+        elif value < 70:
+            self.progress_status.setText("Downloading content...")
+        elif value < 100:
+            self.progress_status.setText("Almost done...")
+        else:
+            self.progress_status.setText("Processing...")
         
     def on_download_complete(self, url):
         self.update_status_display("Complete!", "#4ade80")
         self.progress_bar.setValue(100)
-        self.progress_bar.setVisible(False)
+        self.progress_percent.setText("100%")
+        self.progress_title.setText("Download Complete!")
+        self.progress_status.setText("Saved to Downloads folder")
         self.download_btn.setEnabled(True)
-        QTimer.singleShot(3000, lambda: self.update_status_display("Ready", "rgba(255, 255, 255, 0.3)"))
+        QTimer.singleShot(3000, self.hide_progress_card)
+        
+    def hide_progress_card(self):
+        self.progress_card.setVisible(False)
+        self.update_status_display("Ready", "rgba(255, 255, 255, 0.3)")
         
     def on_download_error(self, error):
         self.update_status_display("Error", "#ef4444")
-        self.progress_bar.setVisible(False)
+        self.progress_title.setText("Download Failed")
+        self.progress_status.setText(error[:50] if len(error) > 50 else error)
+        self.progress_percent.setText("—")
         self.download_btn.setEnabled(True)
+        QTimer.singleShot(5000, self.hide_progress_card)
         
     def update_queue_display(self, count):
         if count > 0:

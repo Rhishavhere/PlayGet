@@ -10,15 +10,15 @@ import queue
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QLineEdit, QComboBox, QFrame, QStackedWidget,
-    QProgressBar, QCheckBox, QScrollArea, QSizePolicy
+    QProgressBar, QScrollArea, QGraphicsDropShadowEffect, QSpacerItem, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QSize
-from PyQt6.QtGui import QFont, QColor, QPalette, QIcon
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
+from PyQt6.QtGui import QFont, QColor, QPalette
 import yt_dlp
 
 # --- Configuration ---
 DOWNLOAD_FOLDER = "Downloads"
-CHECK_INTERVAL = 500  # ms
+CHECK_INTERVAL = 500
 
 # --- Stylesheet ---
 STYLESHEET = """
@@ -29,309 +29,341 @@ STYLESHEET = """
 
 QMainWindow, QWidget#appContainer {
     background: #0d0d0f;
+    border-radius: 16px;
 }
 
 QWidget {
     background: transparent;
     color: #ffffff;
-    font-family: 'Segoe UI', 'Inter', sans-serif;
+    font-family: 'Segoe UI', 'Inter', -apple-system, sans-serif;
 }
 
-/* Title Bar */
+/* ==================== TITLE BAR ==================== */
 QWidget#titleBar {
     background: #16161a;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
 }
 
 QLabel#appLogo {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #ff3b5c, stop:1 #ff6b81);
-    border-radius: 6px;
-    color: white;
-    font-weight: bold;
-    font-size: 12px;
+    border-radius: 7px;
+    font-size: 11px;
 }
 
 QLabel#appTitle {
     font-weight: 700;
     font-size: 14px;
+    letter-spacing: -0.3px;
 }
 
 QPushButton#minimizeBtn, QPushButton#closeBtn {
-    background: #1e1e24;
+    background: rgba(255, 255, 255, 0.05);
     border: none;
     border-radius: 6px;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
 }
 
-QPushButton#minimizeBtn:hover {
+QPushButton#minimizeBtn:hover, QPushButton#closeBtn:hover {
     background: rgba(255, 255, 255, 0.1);
     color: white;
 }
 
 QPushButton#closeBtn:hover {
     background: #ff3b5c;
-    color: white;
 }
 
-/* Section Title */
+/* ==================== MAIN VIEW ==================== */
 QLabel.sectionTitle {
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.4);
-    text-transform: uppercase;
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.35);
     letter-spacing: 1.5px;
 }
 
-/* Platform Buttons */
 QPushButton.platformBtn {
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
-    padding: 16px;
-    text-align: center;
 }
 
 QPushButton.platformBtn:hover:!disabled {
-    border-color: rgba(255, 255, 255, 0.2);
     background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 QPushButton.platformBtn:disabled {
-    opacity: 0.4;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.3);
+}
+
+QPushButton#youtubeBtn {
+    border-color: rgba(255, 0, 51, 0.15);
 }
 
 QPushButton#youtubeBtn:hover {
-    background: rgba(255, 0, 51, 0.1);
-    border-color: #ff0033;
+    background: rgba(255, 0, 51, 0.08);
+    border-color: rgba(255, 0, 51, 0.4);
 }
 
-/* Back Button */
+/* ==================== YOUTUBE VIEW ==================== */
 QPushButton#backBtn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 12px;
-    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 0;
 }
 
 QPushButton#backBtn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    color: #ff3b5c;
 }
 
-/* URL Input */
+QLabel#ytHeaderTitle {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+QLabel#ytHeaderIcon {
+    color: #ff0033;
+    font-size: 20px;
+}
+
+/* URL Input Card */
+QFrame#urlCard {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+}
+
 QLineEdit#urlInput {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
+    background: transparent;
+    border: none;
     color: #ffffff;
     font-size: 13px;
-    padding: 12px 14px;
-    selection-background-color: #ff3b5c;
+    padding: 0;
+    selection-background-color: rgba(255, 59, 92, 0.4);
 }
 
 QLineEdit#urlInput:focus {
-    border-color: #ff3b5c;
-    background: rgba(255, 59, 92, 0.05);
+    background: transparent;
 }
 
-/* Paste Button */
 QPushButton#pasteBtn {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 16px;
+    background: rgba(255, 59, 92, 0.1);
+    border: none;
+    border-radius: 8px;
+    color: #ff3b5c;
+    font-size: 14px;
 }
 
 QPushButton#pasteBtn:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: white;
+    background: rgba(255, 59, 92, 0.2);
 }
 
-/* Type Toggle Buttons */
-QPushButton.typeBtn {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    color: rgba(255, 255, 255, 0.6);
+/* Format Toggle */
+QFrame#formatCard {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+}
+
+QPushButton.formatBtn {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.5);
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
     padding: 10px 16px;
 }
 
-QPushButton.typeBtn:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.8);
+QPushButton.formatBtn:hover {
+    color: rgba(255, 255, 255, 0.7);
 }
 
-QPushButton.typeBtn:checked {
+QPushButton.formatBtn:checked {
     background: rgba(255, 59, 92, 0.15);
-    border-color: #ff3b5c;
-    color: #ffffff;
+    color: #ff3b5c;
 }
 
-/* Quality Dropdown */
-QComboBox {
+/* Quality Selector */
+QComboBox#qualityCombo {
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 10px;
     color: #ffffff;
     font-size: 13px;
-    padding: 10px 14px;
+    font-weight: 500;
+    padding: 12px 16px;
 }
 
-QComboBox:focus, QComboBox:on {
-    border-color: #ff3b5c;
+QComboBox#qualityCombo:hover {
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
-QComboBox::drop-down {
+QComboBox#qualityCombo:focus {
+    border-color: rgba(255, 59, 92, 0.5);
+}
+
+QComboBox#qualityCombo::drop-down {
     border: none;
-    width: 30px;
+    width: 28px;
 }
 
-QComboBox::down-arrow {
+QComboBox#qualityCombo::down-arrow {
     image: none;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 5px solid rgba(255, 255, 255, 0.5);
-    margin-right: 10px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid rgba(255, 255, 255, 0.4);
+    margin-right: 12px;
 }
 
 QComboBox QAbstractItemView {
-    background: #1e1e24;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+    background: #1a1a1f;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
     color: #ffffff;
-    selection-background-color: rgba(255, 59, 92, 0.3);
-    padding: 4px;
+    selection-background-color: rgba(255, 59, 92, 0.2);
+    padding: 6px;
     outline: none;
 }
 
 /* Download Button */
 QPushButton#downloadBtn {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #ff3b5c, stop:0.5 #ff6b81, stop:1 #ff3b5c);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ff3b5c, stop:1 #ff6b81);
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     color: white;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 14px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
 }
 
 QPushButton#downloadBtn:hover {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #ff4d6a, stop:0.5 #ff7d91, stop:1 #ff4d6a);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ff4d6d, stop:1 #ff7d93);
+}
+
+QPushButton#downloadBtn:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #e63350, stop:1 #e65f75);
 }
 
 QPushButton#downloadBtn:disabled {
-    background: rgba(255, 59, 92, 0.3);
-    color: rgba(255, 255, 255, 0.5);
-}
-
-/* Auto Mode Card */
-QFrame#autoModeCard {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 12px;
-}
-
-QLabel#autoModeTitle {
-    font-size: 13px;
-    font-weight: 600;
-}
-
-QLabel.autoModeDesc {
-    font-size: 11px;
+    background: rgba(255, 59, 92, 0.25);
     color: rgba(255, 255, 255, 0.4);
-}
-
-/* Start Auto Button */
-QPushButton#startAutoBtn {
-    background: rgba(255, 59, 92, 0.1);
-    border: 1px solid rgba(255, 59, 92, 0.3);
-    border-radius: 8px;
-    color: #ff3b5c;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 10px 20px;
-}
-
-QPushButton#startAutoBtn:hover {
-    background: rgba(255, 59, 92, 0.2);
-}
-
-QPushButton#startAutoBtn:checked {
-    background: #ff3b5c;
-    color: white;
-}
-
-/* Queue Card */
-QFrame#queueCard {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 10px;
-}
-
-QLabel#queueIcon {
-    font-size: 16px;
-}
-
-QLabel#queueText {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-/* Status Card */
-QFrame#statusCard {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 10px;
-}
-
-QLabel#statusText {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
 }
 
 /* Progress Bar */
-QProgressBar {
+QProgressBar#progressBar {
     background: rgba(255, 255, 255, 0.05);
     border: none;
-    border-radius: 4px;
-    height: 6px;
-    text-align: center;
+    border-radius: 3px;
+    max-height: 6px;
 }
 
-QProgressBar::chunk {
+QProgressBar#progressBar::chunk {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ff3b5c, stop:1 #ff6b81);
-    border-radius: 4px;
+    border-radius: 3px;
+}
+
+/* Auto Mode Section */
+QFrame#autoCard {
+    background: linear-gradient(135deg, rgba(255, 59, 92, 0.05) 0%, rgba(255, 107, 129, 0.02) 100%);
+    border: 1px solid rgba(255, 59, 92, 0.1);
+    border-radius: 14px;
+}
+
+QLabel#autoTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+QLabel#autoIcon {
+    color: #ff3b5c;
+    font-size: 16px;
+}
+
+QLabel.autoDesc {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    line-height: 1.4;
+}
+
+QPushButton#autoToggleBtn {
+    background: transparent;
+    border: 1px solid rgba(255, 59, 92, 0.3);
+    border-radius: 6px;
+    color: #ff3b5c;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 14px;
+    letter-spacing: 0.5px;
+}
+
+QPushButton#autoToggleBtn:hover {
+    background: rgba(255, 59, 92, 0.1);
+}
+
+QPushButton#autoToggleBtn:checked {
+    background: #ff3b5c;
+    border-color: #ff3b5c;
+    color: white;
+}
+
+/* Status Bar */
+QFrame#statusBar {
+    background: rgba(255, 255, 255, 0.02);
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+}
+
+QLabel#statusIcon {
+    font-size: 12px;
+}
+
+QLabel#statusText {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+QLabel#queueBadge {
+    background: rgba(255, 59, 92, 0.15);
+    border-radius: 10px;
+    color: #ff3b5c;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
 }
 
 /* Coming Soon Badge */
-QLabel.comingSoon {
+QLabel.soonBadge {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 4px;
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 9px;
-    padding: 2px 6px;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 2px 5px;
 }
 
 /* Scrollbar */
 QScrollBar:vertical {
     background: transparent;
-    width: 6px;
+    width: 4px;
+    margin: 4px 2px;
 }
 
 QScrollBar::handle:vertical {
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-    min-height: 20px;
+    border-radius: 2px;
+    min-height: 30px;
 }
 
 QScrollBar::handle:vertical:hover {
@@ -347,7 +379,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 
 
 class DownloadSignals(QObject):
-    """Signals for thread-safe GUI updates"""
     status_update = pyqtSignal(str)
     progress_update = pyqtSignal(int)
     download_complete = pyqtSignal(str)
@@ -370,17 +401,15 @@ class PlayGetApp(QMainWindow):
         self.connect_signals()
         self.start_worker()
         
-        # Clipboard timer
         self.clipboard_timer = QTimer()
         self.clipboard_timer.timeout.connect(self.check_clipboard)
         
     def init_ui(self):
         self.setWindowTitle("PlayGet")
-        self.setFixedSize(360, 580)
+        self.setFixedSize(380, 620)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
-        # Main container
         container = QWidget()
         container.setObjectName("appContainer")
         self.setCentralWidget(container)
@@ -389,63 +418,85 @@ class PlayGetApp(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        # Title bar
         self.create_title_bar(main_layout)
         
-        # Stacked widget for views
         self.stack = QStackedWidget()
         main_layout.addWidget(self.stack, 1)
         
-        # Create views
         self.create_main_view()
         self.create_youtube_view()
+        
+        self.create_status_bar(main_layout)
         
         self.setStyleSheet(STYLESHEET)
         
     def create_title_bar(self, parent_layout):
         title_bar = QWidget()
         title_bar.setObjectName("titleBar")
-        title_bar.setFixedHeight(48)
+        title_bar.setFixedHeight(52)
         
         layout = QHBoxLayout(title_bar)
-        layout.setContentsMargins(14, 0, 14, 0)
+        layout.setContentsMargins(16, 0, 12, 0)
         
-        # Logo
         logo = QLabel("▶")
         logo.setObjectName("appLogo")
         logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo.setFixedSize(24, 24)
+        logo.setFixedSize(26, 26)
         
-        # Title
         title = QLabel("PlayGet")
         title.setObjectName("appTitle")
         
-        # Window controls
         minimize_btn = QPushButton("─")
         minimize_btn.setObjectName("minimizeBtn")
-        minimize_btn.setFixedSize(28, 28)
+        minimize_btn.setFixedSize(30, 30)
         minimize_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         minimize_btn.clicked.connect(self.showMinimized)
         
         close_btn = QPushButton("✕")
         close_btn.setObjectName("closeBtn")
-        close_btn.setFixedSize(28, 28)
+        close_btn.setFixedSize(30, 30)
         close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         close_btn.clicked.connect(self.close)
         
         layout.addWidget(logo)
-        layout.addSpacing(8)
+        layout.addSpacing(10)
         layout.addWidget(title)
         layout.addStretch()
         layout.addWidget(minimize_btn)
         layout.addSpacing(4)
         layout.addWidget(close_btn)
         
-        # Dragging
         title_bar.mousePressEvent = self.title_mouse_press
         title_bar.mouseMoveEvent = self.title_mouse_move
         
         parent_layout.addWidget(title_bar)
+        
+    def create_status_bar(self, parent_layout):
+        status_bar = QFrame()
+        status_bar.setObjectName("statusBar")
+        status_bar.setFixedHeight(42)
+        
+        layout = QHBoxLayout(status_bar)
+        layout.setContentsMargins(16, 0, 16, 0)
+        
+        self.status_icon = QLabel("●")
+        self.status_icon.setObjectName("statusIcon")
+        self.status_icon.setStyleSheet("color: rgba(255, 255, 255, 0.3);")
+        
+        self.status_text = QLabel("Ready")
+        self.status_text.setObjectName("statusText")
+        
+        self.queue_badge = QLabel("0")
+        self.queue_badge.setObjectName("queueBadge")
+        self.queue_badge.setVisible(False)
+        
+        layout.addWidget(self.status_icon)
+        layout.addSpacing(8)
+        layout.addWidget(self.status_text)
+        layout.addStretch()
+        layout.addWidget(self.queue_badge)
+        
+        parent_layout.addWidget(status_bar)
         
     def title_mouse_press(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -456,261 +507,236 @@ class PlayGetApp(QMainWindow):
             self.move(event.globalPosition().toPoint() - self.drag_pos)
             
     def create_main_view(self):
-        """Main view with platform selection"""
         view = QWidget()
         layout = QVBoxLayout(view)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
+        layout.setContentsMargins(20, 24, 20, 20)
+        layout.setSpacing(20)
         
-        # Section title
         title = QLabel("SELECT PLATFORM")
         title.setProperty("class", "sectionTitle")
         layout.addWidget(title)
         
-        # Platform grid
-        grid = QWidget()
-        grid_layout = QHBoxLayout(grid)
-        grid_layout.setContentsMargins(0, 0, 0, 0)
-        grid_layout.setSpacing(12)
+        # Platform grid - row 1
+        grid1 = QWidget()
+        grid1_layout = QHBoxLayout(grid1)
+        grid1_layout.setContentsMargins(0, 0, 0, 0)
+        grid1_layout.setSpacing(12)
         
-        # YouTube button
-        yt_btn = self.create_platform_button("🎬", "YouTube", "youtubeBtn", enabled=True)
+        yt_btn = self.create_platform_button("▶", "YouTube", "youtubeBtn", "#ff0033", True)
         yt_btn.clicked.connect(lambda: self.stack.setCurrentIndex(1))
-        grid_layout.addWidget(yt_btn)
+        grid1_layout.addWidget(yt_btn)
         
-        # Facebook button (disabled)
-        fb_btn = self.create_platform_button("📘", "Facebook", "facebookBtn", enabled=False)
-        grid_layout.addWidget(fb_btn)
+        fb_btn = self.create_platform_button("f", "Facebook", "facebookBtn", "#1877f2", False)
+        grid1_layout.addWidget(fb_btn)
         
-        layout.addWidget(grid)
+        layout.addWidget(grid1)
         
-        # Second row
+        # Platform grid - row 2
         grid2 = QWidget()
         grid2_layout = QHBoxLayout(grid2)
         grid2_layout.setContentsMargins(0, 0, 0, 0)
         grid2_layout.setSpacing(12)
         
-        # Instagram button (disabled)
-        ig_btn = self.create_platform_button("📸", "Instagram", "instagramBtn", enabled=False)
+        ig_btn = self.create_platform_button("◎", "Instagram", "instagramBtn", "#e4405f", False)
         grid2_layout.addWidget(ig_btn)
         
-        # TikTok button (disabled)
-        tt_btn = self.create_platform_button("🎵", "TikTok", "tiktokBtn", enabled=False)
+        tt_btn = self.create_platform_button("♪", "TikTok", "tiktokBtn", "#fe2c55", False)
         grid2_layout.addWidget(tt_btn)
         
         layout.addWidget(grid2)
         
-        # Queue status
         layout.addStretch()
-        self.main_queue_card = self.create_queue_card()
-        layout.addWidget(self.main_queue_card)
-        
         self.stack.addWidget(view)
         
-    def create_platform_button(self, icon, name, object_name, enabled=True):
+    def create_platform_button(self, icon, name, obj_name, color, enabled=True):
         btn = QPushButton()
-        btn.setObjectName(object_name)
+        btn.setObjectName(obj_name)
         btn.setProperty("class", "platformBtn")
         btn.setEnabled(enabled)
         btn.setCursor(Qt.CursorShape.PointingHandCursor if enabled else Qt.CursorShape.ForbiddenCursor)
-        btn.setMinimumHeight(80)
+        btn.setFixedHeight(100)
         
-        btn_layout = QVBoxLayout(btn)
-        btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        btn_layout.setSpacing(6)
+        layout = QVBoxLayout(btn)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.setSpacing(8)
         
         icon_label = QLabel(icon)
-        icon_label.setStyleSheet("font-size: 28px;")
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_label.setStyleSheet(f"font-size: 28px; color: {color if enabled else 'rgba(255,255,255,0.3)'};")
         
         name_label = QLabel(name)
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        name_label.setStyleSheet("font-size: 12px;")
+        name_label.setStyleSheet("font-size: 12px; font-weight: 600;")
         
-        btn_layout.addWidget(icon_label)
-        btn_layout.addWidget(name_label)
+        layout.addWidget(icon_label)
+        layout.addWidget(name_label)
         
         if not enabled:
             badge = QLabel("SOON")
-            badge.setProperty("class", "comingSoon")
+            badge.setProperty("class", "soonBadge")
             badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            btn_layout.addWidget(badge)
+            badge.setFixedWidth(40)
+            layout.addWidget(badge, alignment=Qt.AlignmentFlag.AlignCenter)
         
         return btn
         
     def create_youtube_view(self):
-        """YouTube download view"""
         view = QWidget()
         layout = QVBoxLayout(view)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(14)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(0)
         
-        # Header with back button
+        # Header
         header = QWidget()
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(0, 0, 0, 0)
-        header_layout.setSpacing(12)
+        header_layout.setContentsMargins(0, 0, 0, 16)
+        header_layout.setSpacing(0)
         
-        back_btn = QPushButton("← Back")
+        back_btn = QPushButton("←  Back")
         back_btn.setObjectName("backBtn")
         back_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         back_btn.clicked.connect(lambda: self.stack.setCurrentIndex(0))
         
-        header_title = QLabel("YouTube")
-        header_title.setStyleSheet("font-size: 15px; font-weight: 600;")
-        
         header_layout.addWidget(back_btn)
-        header_layout.addWidget(header_title)
         header_layout.addStretch()
+        
+        yt_icon = QLabel("▶")
+        yt_icon.setObjectName("ytHeaderIcon")
+        
+        yt_title = QLabel("YouTube")
+        yt_title.setObjectName("ytHeaderTitle")
+        
+        header_layout.addWidget(yt_icon)
+        header_layout.addSpacing(8)
+        header_layout.addWidget(yt_title)
         
         layout.addWidget(header)
         
-        # URL Input section
-        url_title = QLabel("PASTE URL")
-        url_title.setProperty("class", "sectionTitle")
-        layout.addWidget(url_title)
-        
-        url_row = QWidget()
-        url_layout = QHBoxLayout(url_row)
-        url_layout.setContentsMargins(0, 0, 0, 0)
-        url_layout.setSpacing(8)
+        # URL Input Card
+        url_card = QFrame()
+        url_card.setObjectName("urlCard")
+        url_layout = QHBoxLayout(url_card)
+        url_layout.setContentsMargins(16, 12, 12, 12)
+        url_layout.setSpacing(12)
         
         self.url_input = QLineEdit()
         self.url_input.setObjectName("urlInput")
-        self.url_input.setPlaceholderText("https://youtube.com/watch?v=...")
+        self.url_input.setPlaceholderText("Paste video URL here...")
         
         paste_btn = QPushButton("📋")
         paste_btn.setObjectName("pasteBtn")
-        paste_btn.setFixedSize(44, 44)
+        paste_btn.setFixedSize(36, 36)
         paste_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         paste_btn.clicked.connect(self.paste_url)
         
         url_layout.addWidget(self.url_input, 1)
         url_layout.addWidget(paste_btn)
-        layout.addWidget(url_row)
         
-        # Type selection
-        type_title = QLabel("DOWNLOAD TYPE")
-        type_title.setProperty("class", "sectionTitle")
-        layout.addWidget(type_title)
+        layout.addWidget(url_card)
+        layout.addSpacing(16)
         
-        type_row = QWidget()
-        type_layout = QHBoxLayout(type_row)
-        type_layout.setContentsMargins(0, 0, 0, 0)
-        type_layout.setSpacing(8)
+        # Format Selection
+        format_label = QLabel("FORMAT")
+        format_label.setProperty("class", "sectionTitle")
+        layout.addWidget(format_label)
+        layout.addSpacing(8)
         
-        self.video_btn = QPushButton("🎬 Video")
-        self.video_btn.setProperty("class", "typeBtn")
+        format_card = QFrame()
+        format_card.setObjectName("formatCard")
+        format_layout = QHBoxLayout(format_card)
+        format_layout.setContentsMargins(6, 6, 6, 6)
+        format_layout.setSpacing(4)
+        
+        self.video_btn = QPushButton("🎬  Video")
+        self.video_btn.setProperty("class", "formatBtn")
         self.video_btn.setCheckable(True)
         self.video_btn.setChecked(True)
         self.video_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.video_btn.clicked.connect(lambda: self.set_type("video"))
         
-        self.audio_btn = QPushButton("🎵 Audio Only")
-        self.audio_btn.setProperty("class", "typeBtn")
+        self.audio_btn = QPushButton("🎵  Audio")
+        self.audio_btn.setProperty("class", "formatBtn")
         self.audio_btn.setCheckable(True)
         self.audio_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.audio_btn.clicked.connect(lambda: self.set_type("audio"))
         
-        type_layout.addWidget(self.video_btn)
-        type_layout.addWidget(self.audio_btn)
-        layout.addWidget(type_row)
+        format_layout.addWidget(self.video_btn, 1)
+        format_layout.addWidget(self.audio_btn, 1)
         
-        # Quality selection
-        quality_title = QLabel("QUALITY")
-        quality_title.setProperty("class", "sectionTitle")
-        layout.addWidget(quality_title)
+        layout.addWidget(format_card)
+        layout.addSpacing(16)
+        
+        # Quality Selection
+        quality_label = QLabel("QUALITY")
+        quality_label.setProperty("class", "sectionTitle")
+        layout.addWidget(quality_label)
+        layout.addSpacing(8)
         
         self.quality_combo = QComboBox()
+        self.quality_combo.setObjectName("qualityCombo")
         self.quality_combo.setCursor(Qt.CursorShape.PointingHandCursor)
         self.update_quality_options()
         layout.addWidget(self.quality_combo)
+        layout.addSpacing(20)
         
-        # Download button
-        self.download_btn = QPushButton("⬇ Download")
+        # Download Button
+        self.download_btn = QPushButton("Download")
         self.download_btn.setObjectName("downloadBtn")
+        self.download_btn.setFixedHeight(50)
         self.download_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.download_btn.clicked.connect(self.start_download)
         layout.addWidget(self.download_btn)
+        layout.addSpacing(8)
         
-        # Progress bar
+        # Progress Bar
         self.progress_bar = QProgressBar()
+        self.progress_bar.setObjectName("progressBar")
         self.progress_bar.setVisible(False)
         self.progress_bar.setTextVisible(False)
         self.progress_bar.setFixedHeight(6)
         layout.addWidget(self.progress_bar)
+        layout.addSpacing(20)
         
         # Auto Mode Card
         auto_card = QFrame()
-        auto_card.setObjectName("autoModeCard")
+        auto_card.setObjectName("autoCard")
         auto_layout = QVBoxLayout(auto_card)
-        auto_layout.setContentsMargins(14, 14, 14, 14)
-        auto_layout.setSpacing(8)
+        auto_layout.setContentsMargins(16, 14, 16, 14)
+        auto_layout.setSpacing(6)
         
         auto_header = QWidget()
         auto_header_layout = QHBoxLayout(auto_header)
         auto_header_layout.setContentsMargins(0, 0, 0, 0)
+        auto_header_layout.setSpacing(8)
         
-        auto_title = QLabel("⚡ Auto Mode")
-        auto_title.setObjectName("autoModeTitle")
+        auto_icon = QLabel("⚡")
+        auto_icon.setObjectName("autoIcon")
         
-        self.auto_btn = QPushButton("Start")
-        self.auto_btn.setObjectName("startAutoBtn")
+        auto_title = QLabel("Auto Mode")
+        auto_title.setObjectName("autoTitle")
+        
+        self.auto_btn = QPushButton("START")
+        self.auto_btn.setObjectName("autoToggleBtn")
         self.auto_btn.setCheckable(True)
         self.auto_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.auto_btn.clicked.connect(self.toggle_auto_mode)
         
+        auto_header_layout.addWidget(auto_icon)
         auto_header_layout.addWidget(auto_title)
         auto_header_layout.addStretch()
         auto_header_layout.addWidget(self.auto_btn)
         
-        auto_desc = QLabel("Auto-detect clipboard links and add to queue")
-        auto_desc.setProperty("class", "autoModeDesc")
+        auto_desc = QLabel("Automatically detect and queue URLs from clipboard")
+        auto_desc.setProperty("class", "autoDesc")
         auto_desc.setWordWrap(True)
         
         auto_layout.addWidget(auto_header)
         auto_layout.addWidget(auto_desc)
+        
         layout.addWidget(auto_card)
-        
-        # Spacer
         layout.addStretch()
-        
-        # Queue status
-        self.queue_card = self.create_queue_card()
-        layout.addWidget(self.queue_card)
-        
-        # Status card
-        status_card = QFrame()
-        status_card.setObjectName("statusCard")
-        status_layout = QHBoxLayout(status_card)
-        status_layout.setContentsMargins(12, 10, 12, 10)
-        
-        self.status_text = QLabel("Ready to download")
-        self.status_text.setObjectName("statusText")
-        
-        status_layout.addWidget(self.status_text)
-        layout.addWidget(status_card)
         
         self.stack.addWidget(view)
-        
-    def create_queue_card(self):
-        card = QFrame()
-        card.setObjectName("queueCard")
-        layout = QHBoxLayout(card)
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(10)
-        
-        icon = QLabel("📥")
-        icon.setObjectName("queueIcon")
-        
-        text = QLabel("Queue: 0 items")
-        text.setObjectName("queueText")
-        
-        layout.addWidget(icon)
-        layout.addWidget(text)
-        layout.addStretch()
-        
-        return card
         
     def connect_signals(self):
         self.signals.status_update.connect(self.update_status)
@@ -730,7 +756,7 @@ class PlayGetApp(QMainWindow):
         if self.download_type == "video":
             self.quality_combo.addItems(["Best Quality", "1080p", "720p", "480p", "360p"])
         else:
-            self.quality_combo.addItems(["Best Quality (320 kbps)", "High (256 kbps)", "Medium (192 kbps)", "Low (128 kbps)"])
+            self.quality_combo.addItems(["320 kbps (Best)", "256 kbps", "192 kbps", "128 kbps"])
             
     def paste_url(self):
         clipboard = QApplication.clipboard()
@@ -739,14 +765,14 @@ class PlayGetApp(QMainWindow):
     def toggle_auto_mode(self):
         self.auto_mode_active = self.auto_btn.isChecked()
         if self.auto_mode_active:
-            self.auto_btn.setText("Stop")
+            self.auto_btn.setText("STOP")
             self.clipboard_timer.start(CHECK_INTERVAL)
-            self.status_text.setText("Auto mode: Watching clipboard...")
+            self.update_status_display("Watching clipboard...", "#ff3b5c")
             self.last_clipboard = QApplication.clipboard().text()
         else:
-            self.auto_btn.setText("Start")
+            self.auto_btn.setText("START")
             self.clipboard_timer.stop()
-            self.status_text.setText("Auto mode stopped")
+            self.update_status_display("Ready", "rgba(255, 255, 255, 0.3)")
             
     def check_clipboard(self):
         clipboard = QApplication.clipboard()
@@ -756,7 +782,7 @@ class PlayGetApp(QMainWindow):
             self.last_clipboard = current
             if self.is_youtube_url(current):
                 self.add_to_queue(current)
-                self.status_text.setText(f"Added: {current[:35]}...")
+                self.update_status_display("Added to queue", "#4ade80")
                 
     def is_youtube_url(self, text):
         return text and ("youtube.com/watch" in text or "youtu.be/" in text)
@@ -766,10 +792,10 @@ class PlayGetApp(QMainWindow):
         quality_map = {
             "Best Quality": "best",
             "1080p": "1080", "720p": "720", "480p": "480", "360p": "360",
-            "Best Quality (320 kbps)": "320",
-            "High (256 kbps)": "256",
-            "Medium (192 kbps)": "192",
-            "Low (128 kbps)": "128"
+            "320 kbps (Best)": "320",
+            "256 kbps": "256",
+            "192 kbps": "192",
+            "128 kbps": "128"
         }
         return quality_map.get(text, "best")
         
@@ -780,10 +806,10 @@ class PlayGetApp(QMainWindow):
     def start_download(self):
         url = self.url_input.text().strip()
         if not url:
-            self.status_text.setText("Please enter a URL")
+            self.update_status_display("Enter a URL", "#fbbf24")
             return
         if not self.is_youtube_url(url):
-            self.status_text.setText("Invalid YouTube URL")
+            self.update_status_display("Invalid URL", "#ef4444")
             return
             
         self.add_to_queue(url)
@@ -797,7 +823,7 @@ class PlayGetApp(QMainWindow):
         while True:
             url, dtype, quality = self.url_queue.get()
             self.is_downloading = True
-            self.signals.status_update.emit(f"Downloading...")
+            self.signals.status_update.emit("Downloading...")
             self.signals.queue_update.emit(self.url_queue.qsize())
             
             if not os.path.exists(DOWNLOAD_FOLDER):
@@ -850,8 +876,12 @@ class PlayGetApp(QMainWindow):
         elif d['status'] == 'finished':
             self.signals.progress_update.emit(100)
             
-    def update_status(self, text):
+    def update_status_display(self, text, color):
         self.status_text.setText(text)
+        self.status_icon.setStyleSheet(f"color: {color};")
+            
+    def update_status(self, text):
+        self.update_status_display(text, "#ff3b5c")
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.download_btn.setEnabled(False)
@@ -860,25 +890,23 @@ class PlayGetApp(QMainWindow):
         self.progress_bar.setValue(value)
         
     def on_download_complete(self, url):
-        self.status_text.setText("✓ Download complete!")
+        self.update_status_display("Complete!", "#4ade80")
         self.progress_bar.setValue(100)
         self.progress_bar.setVisible(False)
         self.download_btn.setEnabled(True)
-        QTimer.singleShot(3000, lambda: self.status_text.setText("Ready to download"))
+        QTimer.singleShot(3000, lambda: self.update_status_display("Ready", "rgba(255, 255, 255, 0.3)"))
         
     def on_download_error(self, error):
-        self.status_text.setText(f"✗ Error: {error[:40]}")
+        self.update_status_display("Error", "#ef4444")
         self.progress_bar.setVisible(False)
         self.download_btn.setEnabled(True)
         
     def update_queue_display(self, count):
-        text = f"Queue: {count} item{'s' if count != 1 else ''}"
-        
-        # Update both queue cards
-        for card in [self.queue_card, self.main_queue_card]:
-            label = card.findChild(QLabel, "queueText")
-            if label:
-                label.setText(text)
+        if count > 0:
+            self.queue_badge.setText(str(count))
+            self.queue_badge.setVisible(True)
+        else:
+            self.queue_badge.setVisible(False)
 
 
 def main():

@@ -13,8 +13,9 @@ from PyQt6.QtWidgets import (
     QProgressBar, QScrollArea, QGraphicsDropShadowEffect, QSpacerItem, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QStandardPaths
-from PyQt6.QtGui import QFont, QColor, QPalette
+from PyQt6.QtGui import QFont, QColor, QPalette, QIcon
 import yt_dlp
+import ctypes
 
 # --- Configuration ---
 # --- Configuration ---
@@ -454,6 +455,16 @@ class PlayGetApp(QMainWindow):
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
+        # Set Application Icon
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.png')
+        if getattr(sys, 'frozen', False):
+            icon_path = os.path.join(sys._MEIPASS, 'icon.png')
+            
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+            app_icon = QIcon(icon_path)
+            QApplication.setWindowIcon(app_icon)
+        
         container = QWidget()
         container.setObjectName("appContainer")
         self.setCentralWidget(container)
@@ -471,6 +482,7 @@ class PlayGetApp(QMainWindow):
         self.create_youtube_view()
         self.create_facebook_view()
         
+        self.create_auto_mode_panel(main_layout)
         self.create_status_bar(main_layout)
         
         self.setStyleSheet(STYLESHEET)
@@ -625,6 +637,50 @@ class PlayGetApp(QMainWindow):
             layout.addWidget(badge, alignment=Qt.AlignmentFlag.AlignCenter)
         
         return btn
+        
+    def create_auto_mode_panel(self, parent_layout):
+        auto_card = QFrame()
+        auto_card.setObjectName("autoCard")
+        auto_layout = QVBoxLayout(auto_card)
+        auto_layout.setContentsMargins(16, 14, 16, 14)
+        auto_layout.setSpacing(6)
+        
+        auto_header = QWidget()
+        auto_header_layout = QHBoxLayout(auto_header)
+        auto_header_layout.setContentsMargins(0, 0, 0, 0)
+        auto_header_layout.setSpacing(8)
+        
+        auto_icon = QLabel("⚡")
+        auto_icon.setObjectName("autoIcon")
+        
+        auto_title = QLabel("Auto Mode")
+        auto_title.setObjectName("autoTitle")
+        
+        self.auto_btn = QPushButton("START")
+        self.auto_btn.setObjectName("autoToggleBtn")
+        self.auto_btn.setCheckable(True)
+        self.auto_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.auto_btn.clicked.connect(self.toggle_auto_mode)
+        
+        auto_header_layout.addWidget(auto_icon)
+        auto_header_layout.addWidget(auto_title)
+        auto_header_layout.addStretch()
+        auto_header_layout.addWidget(self.auto_btn)
+        
+        auto_desc = QLabel("Automatically detect and queue URLs from clipboard")
+        auto_desc.setProperty("class", "autoDesc")
+        auto_desc.setWordWrap(True)
+        
+        auto_layout.addWidget(auto_header)
+        auto_layout.addWidget(auto_desc)
+        
+        # Wrap in container with margins to match view padding (20px left/right)
+        container = QWidget()
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(16, 0, 16, 8) # Match status bar connection
+        container_layout.addWidget(auto_card)
+        
+        parent_layout.addWidget(container)
         
     def create_facebook_view(self):
         view = QWidget()
@@ -844,47 +900,10 @@ class PlayGetApp(QMainWindow):
         progress_card_layout.addWidget(self.progress_percent)
         
         layout.addWidget(self.progress_card)
+        layout.addWidget(self.progress_card)
         layout.addSpacing(16)
         
-        # Auto Mode Card
-        auto_card = QFrame()
-        auto_card.setObjectName("autoCard")
-        auto_layout = QVBoxLayout(auto_card)
-        auto_layout.setContentsMargins(16, 14, 16, 14)
-        auto_layout.setSpacing(6)
-        
-        auto_header = QWidget()
-        auto_header_layout = QHBoxLayout(auto_header)
-        auto_header_layout.setContentsMargins(0, 0, 0, 0)
-        auto_header_layout.setSpacing(8)
-        
-        auto_icon = QLabel("⚡")
-        auto_icon.setObjectName("autoIcon")
-        
-        auto_title = QLabel("Auto Mode")
-        auto_title.setObjectName("autoTitle")
-        
-        self.auto_btn = QPushButton("START")
-        self.auto_btn.setObjectName("autoToggleBtn")
-        self.auto_btn.setCheckable(True)
-        self.auto_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.auto_btn.clicked.connect(self.toggle_auto_mode)
-        
-        auto_header_layout.addWidget(auto_icon)
-        auto_header_layout.addWidget(auto_title)
-        auto_header_layout.addStretch()
-        auto_header_layout.addWidget(self.auto_btn)
-        
-        auto_desc = QLabel("Automatically detect and queue URLs from clipboard")
-        auto_desc.setProperty("class", "autoDesc")
-        auto_desc.setWordWrap(True)
-        
-        auto_layout.addWidget(auto_header)
-        auto_layout.addWidget(auto_desc)
-        
-        layout.addWidget(auto_card)
         layout.addStretch()
-        
         self.stack.addWidget(view)
         
     def connect_signals(self):
@@ -1091,6 +1110,11 @@ class PlayGetApp(QMainWindow):
 
 
 def main():
+    # Set AppUserModelID for Windows Taskbar Icon
+    if sys.platform == 'win32':
+        myappid = 'mycompany.playget.downloader.1.0'
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     

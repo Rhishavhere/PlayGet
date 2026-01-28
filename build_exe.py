@@ -28,6 +28,7 @@ def build():
 
     if icon_path:
         args.append(f'--icon={icon_path}')
+        args.append(f'--add-data={icon_path};.')
         print(f"Using icon: {icon_path}")
 
     print(f"Running PyInstaller with args: {args}")

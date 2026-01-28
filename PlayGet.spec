@@ -5,7 +5,7 @@ a = Analysis(
     ['app_gui.py'],
     pathex=[],
     binaries=[('ffmpeg.exe', '.'), ('ffprobe.exe', '.')],
-    datas=[],
+    datas=[('icon.png', '.')],
     hiddenimports=['yt_dlp'],
     hookspath=[],
     hooksconfig={},

@@ -30,7 +30,7 @@ Actually, just grab the `dist/PlayGet.exe` file. It's portable!
 **Running from source:**
 ```bash
 # Clone the repo
-git clone https://github.com/yourusername/PlayGet.git
+git clone https://github.com/Rhishavhere/PlayGet.git
 
 # Install dependencies
 pip install -r requirements.txt
